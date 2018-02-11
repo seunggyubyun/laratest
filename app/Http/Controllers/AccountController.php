@@ -171,4 +171,70 @@ class AccountController extends Controller
             ->with('global', 'Your password could not be changed.');
   }
 
+  public function getForgotPassword() {
+    return view('account.forgot');
+  }
+
+  public function postForgotPassword() {
+    $validator = Validator::make(Request::all(),
+      array(
+        'email' => 'required|email'
+      )
+    );
+
+    if($validator->fails()) {
+      return Redirect::route('account-forgot-password')
+            ->withErrors($validator)
+            ->withInput();
+    } else{
+      //change password
+
+      $user = User::where('email', '=', Request::get('email'));
+
+      if($user->count()) {
+        $user = $user->first();
+
+        //Generate a new code and password
+        $code                 = str_random(60);
+        $password             = str_random(10);
+
+        $user->code           = $code;
+        $user->password_temp  = Hash::make($password);
+
+        if($user->save()) {
+          Mail::send('emails.auth.forgot', array('link' => URL::route('account-recover', $code), 'username' => $user->username, 'password' => $password), function($message) use ($user) {
+            $message->to($user->email, $user->username)->subject('Your new password');
+          });
+
+          return Redirect::route('home')
+                ->with('global', 'We have sent you a new password');
+        }
+      }
+    }
+
+    return Redirect::route('account-forgot-password')
+          ->with('global', 'Could not request new password.');
+  }
+
+  public function getRecover($code) {
+    $user = User::where('code', '=', $code)->where('password_temp', '!=', '');
+
+    if($user->count()) {
+      $user = $user->first();
+
+      $user->password = $user->password_temp;
+      $user->password_temp = '';
+      $user->code = '';
+
+      if($user->save()) {
+        return Redirect::route('home')
+              ->with('global', 'Your account has been recovered and you can sign in with your new password');
+      }
+    }
+
+    return Redirect::route('home')
+          ->with('global', 'Could not recover your account');
+
+  }
+
 }
