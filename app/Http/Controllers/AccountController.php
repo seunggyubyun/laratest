@@ -10,9 +10,54 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Auth;
 
 class AccountController extends Controller
 {
+
+  public function getSignIn(){
+    return view('account.signin');
+  }
+
+  public function postSignIn(){
+    $validator = Validator::make(Request::all(),
+      array(
+        'email'     => 'required|email',
+        'password'  => 'required'
+      )
+    );
+
+    if($validator->fails()){
+      return Redirect::route('account-sign-in')
+            ->withErrors($validator)
+            ->withInput();
+    }
+    else{
+      //Attempt user signin
+
+      $remember = (Request::has('remember')) ? true : false;
+      $auth = Auth::attempt(array(
+        'email'     => Request::get('email'),
+        'password'  => Request::get('password'),
+        'active'    => 1
+      ), $remember);
+
+      if($auth) {
+        return Redirect::intended('/');
+      } else{
+        return Redirect::route('account-sign-in')
+              ->with('global', 'Email/password is wrong or account not activated.');
+      }
+    }
+
+    return Redirect::route('account-sign-in')
+          ->with('global', 'There was a problem signing you in.');
+  }
+
+  public function getSignOut() {
+    Auth::logout();
+    return Redirect::route('home');
+  }
 
   public function getCreate() {
     return view('account.create');
@@ -83,4 +128,47 @@ class AccountController extends Controller
     return Redirect::route('home')
             ->with('global', 'We could not activate your account. Try again later.');
   }
+
+  public function getChangePassword() {
+    return view('account.password');
+  }
+
+  public function postChangePassword() {
+    $validator = Validator::make(Request::all(),
+        array(
+          'old_password' =>   'required',
+          'password' =>       'required|min:6',
+          'password_again' => 'required|same:password'
+        )
+      );
+
+      if($validator->fails()) {
+        return Redirect::route('account-change-password')
+              ->withErrors($validator);
+      } else{
+
+        $user = User::find(Auth::user()->id);
+
+        $old_password = Request::get('old_password');
+        $password = Request::get('password');
+
+        if(Hash::check($old_password, $user->getAuthPassword())) {
+          //password user provided matches
+          $user->password = Hash::make($password);
+
+          if($user->save()) {
+            return Redirect::route('home')
+                  ->with('global', 'Your password has been changed.');
+          }
+          else{
+            return Redirect::route('account-change-password')
+                  ->with('global', 'Your old password was incorrect');
+          }
+        }
+      }
+
+      return Redirect::route('account-change-password')
+            ->with('global', 'Your password could not be changed.');
+  }
+
 }

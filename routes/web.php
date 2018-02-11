@@ -5,6 +5,49 @@ Route::get('/', array(
   'uses' => 'HomeController@home'
 ));
 
+
+Route::get('/user/{username}', array(
+  'as' => 'profile-user',
+  'uses' => 'ProfileController@user'
+));
+/*
+Authenticated group
+*/
+Route::group(array('before' => 'auth'), function() {
+
+  /*
+  \ Authenticated group
+  */
+  Route::group(array('before'=> 'csrf'), function() {
+
+    /*
+    Change Password (POST)
+    */
+    Route::post('/account/change-password', array(
+      'as' => 'account-change-password-post',
+      'uses' => 'AccountController@postChangePassword'
+    ));
+  });
+
+
+  /*
+  Sign out (GET)
+  */
+  Route::get('/account/sign-out', array(
+    'as' => 'account-sign-out',
+    'uses' => 'AccountController@getSignOut'
+  ));
+
+
+  /*
+  Change Password (GET)
+  */
+  Route::get('/account/change-password', array(
+    'as' => 'account-change-password',
+    'uses' => 'AccountController@getChangePassword'
+  ));
+});
+
 /*
 | Unauthenticated group
 nesting routes within group
@@ -23,6 +66,13 @@ Route::group(array('before' => 'guest'), function() {
       'uses' => 'AccountController@postCreate'
     ));
 
+    /*
+    Sign in (POST)
+    */
+    Route::post('/account/signin', array(
+      'as' => 'account-sign-in-post',
+      'uses' => 'AccountController@postSignIn'
+    ));
   });
 
   /*
@@ -45,6 +95,12 @@ Route::group(array('before' => 'guest'), function() {
     'as' => 'account-activate',
     'uses' => 'AccountController@getActivate'
   ));
+
+  Route::get('/account/forgot', array(
+    'as' => 'account-forgot-password',
+    'uses' => 'AccountController@getForgotPassword'
+  ));
+
 });
 
 ?>
